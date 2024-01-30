@@ -1,34 +1,31 @@
 const express = require('express');
 const fs = require('fs');
 const readline = require('readline');
+const cors = require('cors');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 const app = express();
-const port = 3000; // Set the port you want to use
+const port = 3001; // Set the port you want to use
+app.use(cors());
 
 app.get('/api/downsample', (req, res) => {
-    const inputDatasetFilename = 'dataset.csv';
-    const outputDownsampledFilename = 'output_downsampled.csv';
+    const datasetFilename = 'dataset.csv';
     const downsampleInterval = 7;
 
-    processDataset(inputDatasetFilename, outputDownsampledFilename, downsampleInterval, () => {
-        // Read the downsampled data from the generated CSV file
-        const downsampledData = fs.readFileSync(outputDownsampledFilename, 'utf8');
-
-        // Send the downsampled data as JSON
+    processDataset(datasetFilename, downsampleInterval, (downsampledData) => {
+        // Send the downsampled data as JSON in the response
         res.json({ downsampledData });
     });
+});
+
+app.get('/', (req, res) => {
+    res.send('Hello World!');
 });
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
 
-// The rest of your downsampling code remains the same
-// ...
-
-
-// Function to downsample data using mean aggregation
 function downsampleData(data, interval) {
     const downsampledData = [];
     let sum = 0;
@@ -49,12 +46,11 @@ function downsampleData(data, interval) {
     return downsampledData;
 }
 
-// Function to read and process the dataset
-function processDataset(inputFilename, outputFilename, interval) {
+function processDataset(filename, interval, callback) {
     const data = [];
 
     const rl = readline.createInterface({
-        input: fs.createReadStream(inputFilename),
+        input: fs.createReadStream(filename),
         crlfDelay: Infinity
     });
 
@@ -67,23 +63,7 @@ function processDataset(inputFilename, outputFilename, interval) {
         // Downsample the data
         const downsampledData = downsampleData(data, interval);
 
-        // Write downsampled data to a new CSV file
-        const csvWriter = createCsvWriter({
-            path: outputFilename,
-            header: [
-                { id: 'timestamp', title: 'Timestamp' },
-                { id: 'percentage', title: 'Percentage' }
-            ]
-        });
-
-        csvWriter.writeRecords(downsampledData)
-            .then(() => console.log(`Downsampling complete. Output written to ${outputFilename}`));
+        // Invoke the callback with downsampledData
+        callback(downsampledData);
     });
 }
-
-// Replace 'YOUR_DATASET_FILENAME', 'YOUR_OUTPUT_FILENAME', and 'YOUR_DOWNSAMPLE_INTERVAL' with actual values
-const inputDatasetFilename = 'dataset.csv';
-const outputDownsampledFilename = 'output_downsampled.csv';
-const downsampleInterval = 7; // Adjust as needed
-
-processDataset(inputDatasetFilename, outputDownsampledFilename, downsampleInterval);
